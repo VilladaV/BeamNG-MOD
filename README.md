@@ -39,7 +39,7 @@ npm run preview
 python scripts/build_mods_catalog.py
 ```
 
-Lee `C:\Users\johan\AppData\Local\BeamNG\BeamNG.drive\current\mods` y `mods\repo`, actualiza `src/data/modsCatalog.json` y comprime las miniaturas locales en `public/thumbnails/`.
+Lee `C:\Users\ .. \AppData\Local\BeamNG\BeamNG.drive\current\mods` y `mods\repo`, actualiza `src/data/modsCatalog.json` y comprime las miniaturas locales en `public/thumbnails/`.
 
 ## Despliegue en Firebase
 
