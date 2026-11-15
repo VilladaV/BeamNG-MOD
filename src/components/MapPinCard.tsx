@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { MapPin, Sparkles } from 'lucide-react';
-import { getPinAspectClass } from '@/lib/pinAspect';
 import type { MapModItem } from '@/types/mods';
 
 interface MapPinCardProps {
@@ -21,11 +20,12 @@ export function MapPinCard({ map, index, isActiveSection }: MapPinCardProps) {
     <article
       tabIndex={0}
       aria-label={`${map.displayName} (${map.zipName})`}
-      className={`group relative mb-4 break-inside-avoid overflow-hidden rounded-2xl bg-zinc-200/80 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 ${
-        isBelowFold ? 'card-deferred' : ''
-      }`}
+      className="group relative overflow-hidden rounded-2xl bg-zinc-200/80 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950"
     >
-      <div className={`relative w-full overflow-hidden ${getPinAspectClass(map.aspectRatio)}`}>
+      <div
+        className="relative w-full overflow-hidden"
+        style={{ aspectRatio: `${map.aspectWidth} / ${map.aspectHeight}` }}
+      >
         {showSplitView ? (
           <div className="relative grid h-full w-full grid-cols-2 overflow-hidden">
             {/* Left half: real-world location photo */}

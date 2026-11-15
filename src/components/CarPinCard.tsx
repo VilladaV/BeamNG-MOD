@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { CarFront } from 'lucide-react';
-import { getPinAspectClass } from '@/lib/pinAspect';
 import type { CarModItem } from '@/types/mods';
 
 interface CarPinCardProps {
@@ -33,11 +32,12 @@ export function CarPinCard({ car, index }: CarPinCardProps) {
     <article
       tabIndex={0}
       aria-label={`${car.displayName} (${car.zipName})`}
-      className={`group relative mb-4 break-inside-avoid overflow-hidden rounded-2xl bg-zinc-200/80 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 ${
-        isBelowFold ? 'card-deferred' : ''
-      }`}
+      className="group relative overflow-hidden rounded-2xl bg-zinc-200/80 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950"
     >
-      <div className={`relative w-full overflow-hidden ${getPinAspectClass(car.aspectRatio)}`}>
+      <div
+        className="relative w-full overflow-hidden"
+        style={{ aspectRatio: `${car.aspectWidth} / ${car.aspectHeight}` }}
+      >
         {activeSrc ? (
           <img
             src={activeSrc}
