@@ -1,4 +1,5 @@
 import { MapPinCard } from '@/components/MapPinCard';
+import { MasonryGrid } from '@/components/MasonryGrid';
 import type { MapModItem } from '@/types/mods';
 
 interface MapsMasonryGalleryProps {
@@ -27,16 +28,12 @@ export function MapsMasonryGallery({
 
   return (
     <section aria-label="Galería de mapas y lugares reales">
-      <div className="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
-        {maps.map((map, index) => (
-          <MapPinCard
-            key={map.id}
-            map={map}
-            index={index}
-            isActiveSection={isActiveSection}
-          />
-        ))}
-      </div>
+      <MasonryGrid
+        items={maps}
+        renderItem={(map, index) => (
+          <MapPinCard map={map} index={index} isActiveSection={isActiveSection} />
+        )}
+      />
     </section>
   );
 }

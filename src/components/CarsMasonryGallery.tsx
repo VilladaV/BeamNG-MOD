@@ -1,4 +1,5 @@
 import { CarPinCard } from '@/components/CarPinCard';
+import { MasonryGrid } from '@/components/MasonryGrid';
 import type { CarModItem } from '@/types/mods';
 
 interface CarsMasonryGalleryProps {
@@ -22,11 +23,10 @@ export function CarsMasonryGallery({ cars, searchQuery }: CarsMasonryGalleryProp
 
   return (
     <section aria-label="Galería de autos reales">
-      <div className="columns-2 gap-4 sm:columns-3 md:columns-4 lg:columns-5">
-        {cars.map((car, index) => (
-          <CarPinCard key={car.id} car={car} index={index} />
-        ))}
-      </div>
+      <MasonryGrid
+        items={cars}
+        renderItem={(car, index) => <CarPinCard car={car} index={index} />}
+      />
     </section>
   );
 }

@@ -103,11 +103,6 @@
     }
   }
 
-  .card-deferred {
-    content-visibility: auto;
-    contain-intrinsic-size: auto none auto 280px;
-  }
-
   .cached-view {
     display: none;
   }
