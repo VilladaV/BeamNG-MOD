@@ -66,6 +66,7 @@ export default function App() {
           className={`cached-view ${activeTab === 'maps' ? 'is-active' : ''}`}
         >
           <MapsMasonryGallery
+            allMaps={modsCatalog.maps}
             maps={filteredMaps}
             searchQuery={searchQuery}
             isActiveSection={activeTab === 'maps'}
