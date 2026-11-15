@@ -7,14 +7,16 @@ import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageChops, ImageStat
 
 MODS_ROOT = Path(r"C:\Users\johan\AppData\Local\BeamNG\BeamNG.drive\current\mods")
 PROJECT_ROOT = Path(r"C:\Users\johan\orca\workspaces\GlobalBerrs\BeamNG")
 OUT_JSON = PROJECT_ROOT / "src" / "data" / "modsCatalog.json"
 MAPS_THUMB_DIR = PROJECT_ROOT / "public" / "thumbnails" / "maps"
 CARS_THUMB_DIR = PROJECT_ROOT / "public" / "thumbnails" / "cars"
-CACHE_FILE = Path(r"C:\Users\johan\.gemini\antigravity-cli\brain\6e4d0edc-c889-4359-a7f7-1a68e2c77300\scratch\wiki_image_cache.json")
+CACHE_DIR = Path(r"C:\Users\johan\.gemini\antigravity-cli\brain\6e4d0edc-c889-4359-a7f7-1a68e2c77300\scratch")
+CACHE_FILE = CACHE_DIR / "wiki_image_v2_cache.json"
+COMMONS_CACHE_FILE = CACHE_DIR / "commons_gallery_cache.json"
 
 USER_AGENT = "BeamNGModsGalleryBot/1.0 (https://github.com/VilladaV/BeamNG-MOD)"
 
@@ -89,13 +91,13 @@ SKIP_MAP_ZIPS = {
 LORE_AND_EXACT_CAR_MAP = {
     "05 mustang gt.zip": ("Ford Mustang (fifth generation)", "2005 Ford Mustang GT"),
     "1967 mercedes-benz 280sl.zip": ("Mercedes-Benz SL-Class (W113)", "1967 Mercedes-Benz 280SL"),
-    "1995subub.zip": ("Chevrolet Suburban", "1995 Chevrolet Suburban GMT400"),
+    "1995subub.zip": ("Chevrolet Suburban (eighth generation)", "1995 Chevrolet Suburban GMT400"),
     "1volga_21_dynamic_release_v16_2025_by_beamfixer_modland.zip": ("GAZ-21", "GAZ-21 Volga"),
     "2006-2014_smart_fortwo_451_035fixmb_dynamic_edition_v1.1_2025_by_georgi.zip": ("Smart Fortwo", "Smart Fortwo (451)"),
-    "2020_audi_rs5_b9_modland.zip": ("Audi RS 5", "Audi RS 5 (B9)"),
+    "2020_audi_rs5_b9_modland.zip": ("Audi RS5 B9", "Audi RS 5 (B9)"),
     "2022-hyundai-casper-v3-05-0-37-x_1760375345_563321_dynamic_patch_v15_2024_by_autobeam_modland.zip": ("Hyundai Casper", "Hyundai Casper"),
     "3series_f30.zip": ("BMW 3 Series (F30)", "BMW 3 Series (F30)"),
-    "90094-daewoo-nexia-sedan-2000-v20.zip": ("Daewoo Cielo", "Daewoo Nexia"),
+    "90094-daewoo-nexia-sedan-2000-v20.zip": ("Daewoo Nexia", "Daewoo Nexia"),
     "911_996.zip": ("Porsche 911 (996)", "Porsche 911 (996)"),
     "acm_haval_f7_gr_22_07_2025_final.zip": ("Haval F7", "Haval F7"),
     "ananda_andika_suzuki_carry.zip": ("Suzuki Carry", "Suzuki Carry"),
@@ -117,12 +119,12 @@ LORE_AND_EXACT_CAR_MAP = {
     "bmw m5 g90.zip": ("BMW M5", "BMW M5 (G90)"),
     "bmw m8 f92 revamped.zip": ("BMW 8 Series (G15)", "BMW M8 (F92)"),
     "bmw_e34_spec.zip": ("BMW 5 Series (E34)", "BMW 5 Series (E34)"),
-    "bmw_e46.zip": ("BMW M3", "BMW M3 GTR (E46)"),
+    "bmw_e46.zip": ("BMW M3 (E46)", "BMW M3 GTR (E46)"),
     "bmw_g70_2024_2.0.zip": ("BMW 7 Series (G70)", "BMW 7 Series (G70)"),
     "bmw_m2_g87_modland.zip": ("BMW M2", "BMW M2 (G87)"),
-    "bmw_m4.zip": ("BMW M4", "BMW M4"),
-    "bmw_m4_g82.zip": ("BMW M4", "BMW M4 (G82)"),
-    "bmw_m5_f90_11_modland.zip": ("BMW M5", "BMW M5 (F90)"),
+    "bmw_m4.zip": ("BMW M4 (F82)", "BMW M4 (F82)"),
+    "bmw_m4_g82.zip": ("BMW M4 (G82)", "BMW M4 (G82)"),
+    "bmw_m5_f90_11_modland.zip": ("BMW M5 (F90)", "BMW M5 (F90)"),
     "bmw_m5f90_customv1.0.zip": ("BMW 5 Series (G30)", "BMW M5 (F90 / G30)"),
     "bmw_m6_f13_modland.zip": ("BMW 6 Series (F12)", "BMW M6 (F13)"),
     "bmw_x3.zip": ("BMW X3", "BMW X3"),
@@ -130,7 +132,7 @@ LORE_AND_EXACT_CAR_MAP = {
     "bmwe53.zip": ("BMW X5 (E53)", "BMW X5 (E53)"),
     "bmwf10_modland.zip": ("BMW 5 Series (F10)", "BMW M5 (F10)"),
     "bmwg20_modland.zip": ("BMW 3 Series (G20)", "BMW 3 Series (G20)"),
-    "bmwm3f80_modland.zip": ("BMW M3", "BMW M3 (F80)"),
+    "bmwm3f80_modland.zip": ("BMW M3 (F80)", "BMW M3 (F80)"),
     "bmwx6m.zip": ("BMW X6", "BMW X6 M"),
     "bngtunerkijangkf10.zip": ("Toyota Kijang", "Toyota Kijang KF10"),
     "bronco.zip": ("Ford Bronco", "Ford Bronco"),
@@ -154,12 +156,12 @@ LORE_AND_EXACT_CAR_MAP = {
     "confused ferrari f40 v1.zip": ("Ferrari F40", "Ferrari F40"),
     "corvette c6.zip": ("Chevrolet Corvette (C6)", "Chevrolet Corvette C6"),
     "corvette c7 zr1.zip": ("Chevrolet Corvette (C7)", "Chevrolet Corvette C7 ZR1"),
-    "crs_bmw_m4_g82_gt4.zip": ("BMW M4", "BMW M4 GT4 (G82)"),
+    "crs_bmw_m4_g82_gt4.zip": ("BMW M4 GT4", "BMW M4 GT4 (G82)"),
     "dacia1310 r_modland.zip": ("Dacia 1300", "Dacia 1310"),
     "dacialoganmk1_hotfix.zip": ("Dacia Logan", "Dacia Logan Mk1"),
     "daciapack_kajto_fastlane.zip": ("Dacia Sandero", "Dacia Sandero"),
     "daciasandermk1_turbodiesel.zip": ("Dacia Sandero", "Dacia Sandero Mk1"),
-    "daewoo-matiz.zip": ("Chevrolet Spark", "Daewoo Matiz"),
+    "daewoo-matiz.zip": ("Daewoo Matiz", "Daewoo Matiz"),
     "daewoo_tico.zip": ("Daewoo Tico", "Daewoo Tico"),
     "daihatsu-rocky-v1-0-0-35-x_1745087614_661509.zip": ("Daihatsu Rocky (A200)", "Daihatsu Rocky"),
     "dark horse.zip": ("Ford Mustang (seventh generation)", "Ford Mustang Dark Horse"),
@@ -171,7 +173,7 @@ LORE_AND_EXACT_CAR_MAP = {
     "dodge_challenger_mmstudio.zip": ("Dodge Challenger", "Dodge Challenger"),
     "dodge_charger_14.zip": ("Dodge Charger (LX)", "2014 Dodge Charger"),
     "dodge_charger_2011-2014_fr999.zip": ("Dodge Charger (LX)", "Dodge Charger (2011-2014)"),
-    "domestic_e60_2.0.zip": ("BMW 5 Series (E60)", "BMW M5 (E60)"),
+    "domestic_e60_2.0.zip": ("BMW M5 (E60)", "BMW M5 (E60)"),
     "duster24_modland.zip": ("Dacia Duster", "Dacia Duster"),
     "e39kenemationv14.zip": ("BMW 5 Series (E39)", "BMW 5 Series (E39)"),
     "e63s_modland.zip": ("Mercedes-Benz E-Class (W212)", "Mercedes-AMG E63S (W212)"),
@@ -180,7 +182,7 @@ LORE_AND_EXACT_CAR_MAP = {
     "estr34.zip": ("Nissan Skyline", "Nissan Skyline GT-R R34"),
     "f150_ww.zip": ("Ford F-150", "Ford F-150"),
     "f87bakebymealtyx.zip": ("BMW M2", "BMW M2 (F87)"),
-    "f90bbnxmealtyxmods.zip": ("BMW M5", "BMW M5 (F90)"),
+    "f90bbnxmealtyxmods.zip": ("BMW M5 (F90)", "BMW M5 (F90)"),
     "feliup.zip": ("Škoda Felicia", "Škoda Felicia Pickup"),
     "ferf296gt3.zip": ("Ferrari 296 GTB", "Ferrari 296 GT3"),
     "ferrari_458_italia.zip": ("Ferrari 458", "Ferrari 458 Italia"),
@@ -196,7 +198,7 @@ LORE_AND_EXACT_CAR_MAP = {
     "ford_ranger_modland.zip": ("Ford Ranger", "2021 Ford Ranger"),
     "ford_smax_fastlane_kajto.zip": ("Ford S-Max", "Ford S-MAX"),
     "ford_transit_2003.zip": ("Ford Transit", "2003 Ford Transit Mk6"),
-    "fp_mobile_crane_130t_modland.zip": ("Liebherr LTM 11200-9.1", "Grúa Móvil 130T"),
+    "fp_mobile_crane_130t_modland.zip": ("Liebherr mobile crane", "Grúa Móvil 130T"),
     "fr17_22.zip": ("Formula One car", "Formula Racecar FR22 (F1)"),
     "frosteezyspeed3_release.zip": ("Mazda3", "Mazdaspeed3 (BK)"),
     "frs200.zip": ("Ford RS200", "Ford RS200"),
@@ -268,10 +270,10 @@ LORE_AND_EXACT_CAR_MAP = {
     "lotus_elise_mk3_v1_1_2_release.zip": ("Lotus Elise", "Lotus Elise Mk3"),
     "lotus_talbot_lkrl_mods_rework_by_dada-didi95903_1.2.zip": ("Talbot Sunbeam", "Talbot Sunbeam Lotus"),
     "lxr_x_flanje_c6_v1.3_modland.zip": ("Chevrolet Corvette (C6)", "Chevrolet Corvette C6"),
-    "m3f80.zip": ("BMW M3", "BMW M3 (F80)"),
-    "m3g80-81.zip": ("BMW M3", "BMW M3 (G80 / G81)"),
-    "m4_xnme.zip": ("BMW M4", "BMW M4 LCI (G82 / G83)"),
-    "m5 e60 netrax.zip": ("BMW 5 Series (E60)", "BMW M5 (E60)"),
+    "m3f80.zip": ("BMW M3 (F80)", "BMW M3 (F80)"),
+    "m3g80-81.zip": ("BMW M3 (G80)", "BMW M3 (G80 / G81)"),
+    "m4_xnme.zip": ("BMW M4 (G82)", "BMW M4 LCI (G82 / G83)"),
+    "m5 e60 netrax.zip": ("BMW M5 (E60)", "BMW M5 (E60)"),
     "m7_charger13_modland.zip": ("Dodge Charger", "2013 Dodge Charger"),
     "m939_modland.zip": ("M939 series 5-ton 6x6 truck", "AM General M939 6x6"),
     "man_tgs.zip": ("MAN TGS", "MAN TGS Euro 6"),
@@ -318,8 +320,8 @@ LORE_AND_EXACT_CAR_MAP = {
     "multivan.zip": ("Volkswagen Transporter (T6)", "Volkswagen Multivan (T6)"),
     "mustang foxbody.zip": ("Ford Mustang (third generation)", "1993 Ford Mustang Cobra R Foxbody"),
     "mustang pack.zip": ("Ford Mustang", "Ford Mustang Pack"),
-    "nexia.zip": ("Daewoo Cielo", "Daewoo Nexia"),
-    "nexiarest_modland.zip": ("Daewoo Cielo", "Daewoo Nexia N150"),
+    "nexia.zip": ("Daewoo Nexia", "Daewoo Nexia"),
+    "nexiarest_modland.zip": ("Daewoo Nexia", "Daewoo Nexia N150"),
     "nix_83_ranger_sas.zip": ("Ford Ranger", "1983 Ford Ranger SAS"),
     "nix_84_s10.zip": ("Chevrolet S-10", "1984 Chevy S-10"),
     "nix_97_dakota.zip": ("Dodge Dakota", "1997 Dodge Dakota"),
@@ -328,7 +330,7 @@ LORE_AND_EXACT_CAR_MAP = {
     "nix_rock_bouncer.zip": ("Rock crawling", "Nix Rock Bouncer"),
     "nix_trail_raider.zip": ("Off-road vehicle", "Nix Trail Raider"),
     "notlow_eclipse_modland.zip": ("Mitsubishi Eclipse", "Mitsubishi Eclipse (2G)"),
-    "octavia_v1.0_workers_group_modland.zip": ("Škoda Octavia", "Škoda Octavia (1U)"),
+    "octavia_v1.0_workers_group_modland.zip": ("Škoda Octavia (Typ 1U)", "Škoda Octavia (1U)"),
     "olympia26_spadie_v2.0.zip": ("Hyundai Kona", "Raevo Olympia Crossover"),
     "outback2020.zip": ("Subaru Outback", "2020 Subaru Outback"),
     "p1_release.zip": ("Citroën ZX", "Autron CVP (Citroën ZX)"),
@@ -379,13 +381,13 @@ LORE_AND_EXACT_CAR_MAP = {
     "suzuki-swift-2004-2010-v1-7-0-35-x_1746736758_848969.zip": ("Suzuki Swift", "Suzuki Swift (2004-2010)"),
     "t4runnertrdpro.zip": ("Toyota 4Runner", "Toyota 4Runner TRD Pro"),
     "takumi_subaru impreza wrx hatch.zip": ("Subaru Impreza", "Subaru Impreza WRX Hatch"),
-    "tlc 200 & tg_m0dsbeamng.zip": ("Toyota Land Cruiser", "Toyota Land Cruiser 200"),
+    "tlc 200 & tg_m0dsbeamng.zip": ("Toyota Land Cruiser (J200)", "Toyota Land Cruiser 200"),
     "tow_truck_sprinter.zip": ("Mercedes-Benz Sprinter", "Gavril Vianter Grúa (Sprinter)"),
-    "toyota-land-cruiser-fj55.zip": ("Toyota Land Cruiser", "Toyota Land Cruiser FJ55"),
+    "toyota-land-cruiser-fj55.zip": ("Toyota Land Cruiser (J50)", "Toyota Land Cruiser FJ55"),
     "toyota_camry_2007.zip": ("Toyota Camry", "2007 Toyota Camry"),
     "toyota_fortuner_modland.zip": ("Toyota Fortuner", "Toyota Fortuner"),
-    "toyota_land_cruiser.zip": ("Toyota Land Cruiser", "Toyota Land Cruiser 60 Series"),
-    "toyota_land_cruiser_300.zip": ("Toyota Land Cruiser", "Toyota Land Cruiser 300"),
+    "toyota_land_cruiser.zip": ("Toyota Land Cruiser (J60)", "Toyota Land Cruiser 60 Series"),
+    "toyota_land_cruiser_300.zip": ("Toyota Land Cruiser (J300)", "Toyota Land Cruiser 300"),
     "toyota_land_cruiser_fj45.zip": ("Toyota Land Cruiser (J40)", "Toyota Land Cruiser FJ45"),
     "toyotahiluxv2.01.zip": ("Toyota Hilux", "Toyota Hilux"),
     "transit.zip": ("Ford Transit", "Ford Transit Mk6"),
@@ -537,6 +539,38 @@ REAL_MAPS_MAP = {
     "nanamagari.zip": ("Nanamagari Touge", "Hakone, Kanagawa", "Nanamagari, Kanagawa, Japón"),
 }
 
+# Explicit Wikimedia Commons photo queries for real-world maps whose Wikipedia article
+# lead image is a track diagram, highway shield, flag, painting, or satellite raster.
+MAP_COMMONS_PHOTO_QUERIES = {
+    "2k-irohazaka_performance_build_v3.6_2024_by_tuninggarage.zip": "Irohazaka Nikko",
+    "2k-momiji_modland.zip": "Lake Chuzenji Nikko",
+    "60s_lemans1point1.zip": "Circuit de la Sarthe Le Mans track",
+    "lemans26_tunim.zip": "24 Hours of Le Mans race circuit",
+    "bolivianroadsbydino12507.zip": "Yungas Road Bolivia",
+    "cadwell1point2.zip": "Cadwell Park race circuit",
+    "kasach_desert.zip": "Kazakhstan steppe landscape",
+    "ks_nord_v20231124_v2.zip": "Nordschleife Nurburgring track",
+    "magadan_modland.zip": "Kolyma Magadan Oblast landscape",
+    "monaco_tunim.zip": "Monaco Grand Prix street circuit",
+    "mountpanorama12htunim.zip": "Mount Panorama Bathurst circuit",
+    "nevada_interstate_openbeta.zip": "Interstate 80 Nevada desert highway",
+    "schneeweg_grille.zip": "Schneeberg Sachsen Germany",
+    "south_east_sahara__map(offroad)_modland.zip": "Sahara sand dunes Morocco",
+    "tokyo.zip": "Shuto Expressway Tokyo night",
+    "twinringbyjosh_modland.zip": "Twin Ring Motegi 2010",
+    "veincalif10.zip": "Bixby Creek Bridge Big Sur coast",
+    "dardslasvegasspeedway-offroad.zip": "Las Vegas Motor Speedway track",
+    "dardslucasoilspeedway.zip": "Dirt track racing oval",
+    "dardslucasoilsspeedway.zip": "Dirt track racing oval",
+    "dardsglenhelenraceway.zip": "San Bernardino Mountains California",
+    "grille_autobahn_loop.zip": "Bundesautobahn A3 Germany",
+    "mbwr_alps.zip": "Julier Pass Switzerland road",
+    "mulholland_v092b_hotfix.zip": "Mulholland Drive Los Angeles hills",
+    "skeleton_coast.zip": "Skeleton Coast Namibia dunes",
+    "rydal_039_fix.zip": "Blue Mountains New South Wales valley",
+    "rutas2.zip": "Ruta Nacional 40 Argentina Patagonia",
+}
+
 FICTIONAL_DISPLAY_OVERRIDES = {
     "russianprovincetown.zip": "Russian Province Town",
     "popcorn_modland.zip": "Dangerous Roads 2 - Sierra Mexicana",
@@ -575,7 +609,27 @@ TRUCK_ZIPS = {
 
 BAD_IMG_WORDS = (
     "heightmap", "depth", "layermap", "holemap", "terrainpreset", "null_",
-    "_n.", "_nm.", "_r.", "_ao.", "_b.", "_h.", "rough", "normal", "mask", "roadmap"
+    "_n.", "_nm.", "_r.", "_ao.", "_b.", "_h.", "rough", "normal", "mask",
+    "roadmap", "minimap", "template_preview", "granturismo.png",
+    "myherin_main_preview.png", "shasta_preview.jpg", "ev_charger",
+    "fuel_local", "fuel_nodeoline", "jp_evs", "annotation",
+)
+
+NON_PHOTO_URL_TOKENS = (
+    "logo", "flag", "map", "sign", "zeichen", "shield", "badge", "emblem",
+    "gradient", "diagram", "plant", "brigade", "detall", "_in_erz",
+    "region_of_", "1px-250m", "real_color", "overview", "coat_of_arms",
+    "emblema", "escudo", "karte", "carte", "mappa", "chart", "icon",
+    "wordmark", "silhouette", "blueprint", "schema", "drawing",
+    "illustration", "stamp", "poster", "20101003_daewoo_lemans_1",
+    "helicopter", "otavi_1945", "xp2002_leads_wt28", "sanbernardinostation",
+    "page1-", "page2-", "stereoscope", "argentopyrite", "convoy,_27_march_1945",
+    "sts0", "iss0", "flora_of_japan", "model_car", "diecast", "veritas_rs",
+)
+
+CAR_DETAIL_RE = re.compile(
+    r"(?:^|[_\-\s,(])(rear|heck|taillight|headlight|interior|cockpit|dashboard|steering|engine|motorraum|wheel|rim|alloy|tire|tyre|closeup|close-up|trunk|boot|seat|seats|dash|speedo|odometer)(?:$|[_\-\s,).])",
+    re.IGNORECASE,
 )
 
 def slugify(text: str) -> str:
@@ -595,7 +649,50 @@ def load_lenient_json(raw: bytes):
         except Exception:
             return None
 
-def save_resized_jpeg(raw_bytes: bytes, out_path: Path, max_w: int, quality: int) -> bool:
+def get_image_metrics(raw_bytes: bytes):
+    try:
+        with Image.open(io.BytesIO(raw_bytes)) as im:
+            w, h = im.size
+            rgb = im.convert("RGB")
+            stat = ImageStat.Stat(rgb)
+            mean_b = sum(stat.mean) / 3.0
+            std_b = sum(stat.stddev) / 3.0
+            small = rgb.resize((64, 64))
+            raw_px = small.tobytes()
+            total_px = 64 * 64
+            whites = 0
+            blacks = 0
+            for idx in range(0, len(raw_px), 3):
+                r, g, b = raw_px[idx], raw_px[idx + 1], raw_px[idx + 2]
+                if r > 235 and g > 235 and b > 235:
+                    whites += 1
+                elif r < 16 and g < 16 and b < 16:
+                    blacks += 1
+            return {
+                "width": w,
+                "height": h,
+                "mean": mean_b,
+                "std": std_b,
+                "white_ratio": whites / total_px,
+                "black_ratio": blacks / total_px,
+            }
+    except Exception:
+        return None
+
+def is_good_game_preview(raw_bytes: bytes, min_width: int = 360) -> bool:
+    m = get_image_metrics(raw_bytes)
+    if not m:
+        return False
+    return (
+        m["width"] >= min_width
+        and m["height"] >= 150
+        and m["std"] >= 30.0
+        and 22.0 <= m["mean"] <= 215.0
+        and m["white_ratio"] <= 0.42
+        and m["black_ratio"] <= 0.55
+    )
+
+def save_resized_jpeg(raw_bytes: bytes, out_path: Path, max_w: int, quality: int):
     try:
         img = Image.open(io.BytesIO(raw_bytes))
         if img.mode in ("RGBA", "LA", "P"):
@@ -610,49 +707,122 @@ def save_resized_jpeg(raw_bytes: bytes, out_path: Path, max_w: int, quality: int
             img = img.resize((max_w, max(1, int(img.height * ratio))), Image.Resampling.LANCZOS)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         img.save(out_path, format="JPEG", quality=quality, optimize=True)
-        return True
+        return (img.width, img.height)
     except Exception:
-        return False
+        return None
 
-def pick_map_preview(names, lvl_dirs, lvl_infos):
+def render_relief_from_heightmap(raw_bytes: bytes, out_path: Path):
+    """Generates a shaded 16:9 topographic relief JPEG from a terrain heightmap."""
+    try:
+        with Image.open(io.BytesIO(raw_bytes)) as src:
+            gray = src.convert("L").resize((640, 360), Image.Resampling.BILINEAR)
+        # NW directional lighting via simple shifted difference
+        dx = ImageChops.subtract(gray, ImageChops.offset(gray, 2, 0), scale=1, offset=128)
+        dy = ImageChops.subtract(gray, ImageChops.offset(gray, 0, 2), scale=1, offset=128)
+        shade = ImageChops.blend(dx, dy, 0.5)
+        r_ch = ImageChops.blend(gray, shade, 0.48).point(lambda v: max(35, min(225, int(v * 0.72 + 48))))
+        g_ch = ImageChops.blend(gray, shade, 0.48).point(lambda v: max(45, min(230, int(v * 0.78 + 56))))
+        b_ch = ImageChops.blend(gray, shade, 0.48).point(lambda v: max(40, min(220, int(v * 0.68 + 46))))
+        out_img = Image.merge("RGB", (r_ch, g_ch, b_ch))
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_img.save(out_path, format="JPEG", quality=80, optimize=True)
+        return out_img.size
+    except Exception:
+        return None
+
+def gather_map_preview_candidates(names, lvl_dirs, lvl_infos):
+    primary = []
+    modinfo_imgs = []
+    secondary = []
+
     for d in lvl_dirs:
         info = lvl_infos.get(d) or {}
         for prev in (info.get("previews") or []):
             cand = f"levels/{d}/{prev}".lower()
             for n in names:
-                if n.lower() == cand and n.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
-                    return n
+                nl = n.lower()
+                if nl == cand and nl.endswith((".jpg", ".jpeg", ".png", ".webp")):
+                    if not any(b in nl for b in BAD_IMG_WORDS):
+                        primary.append(n)
     for d in lvl_dirs:
         prefix = f"levels/{d}/".lower()
         for n in names:
             nl = n.lower()
             if nl.startswith(prefix) and nl.endswith((".jpg", ".jpeg", ".png", ".webp")):
                 rel = nl[len(prefix):]
-                if "/" not in rel and ("preview" in rel or rel.startswith("default.")):
-                    if not any(b in rel for b in BAD_IMG_WORDS):
-                        return n
+                if "/" not in rel and ("preview" in rel or rel.startswith("default.")) and not any(b in nl for b in BAD_IMG_WORDS):
+                    if n not in primary:
+                        primary.append(n)
     for n in names:
         nl = n.lower()
-        if nl.startswith("mod_info/") and ("/images/" in nl or "/thumbs/" in nl) and nl.endswith((".jpg", ".jpeg", ".png", ".webp")):
-            return n
+        if nl.startswith("mod_info/") and "/images/" in nl and nl.endswith((".jpg", ".jpeg", ".png", ".webp")):
+            modinfo_imgs.append(n)
+    for n in names:
+        nl = n.lower()
+        if nl.startswith("mod_info/") and "/thumbs/" in nl and nl.endswith((".jpg", ".jpeg", ".png", ".webp")):
+            if n not in modinfo_imgs:
+                modinfo_imgs.append(n)
     for d in lvl_dirs:
         prefix = f"levels/{d}/quickrace/".lower()
         for n in names:
             nl = n.lower()
             if nl.startswith(prefix) and nl.endswith((".jpg", ".jpeg", ".png", ".webp")):
-                return n
+                secondary.append(n)
     for d in lvl_dirs:
         prefix = f"levels/{d}/".lower()
         for n in names:
             nl = n.lower()
             if nl.startswith(prefix) and nl.endswith((".jpg", ".jpeg", ".png", ".webp")):
                 rel = nl[len(prefix):]
-                if "/" not in rel and not any(b in rel for b in BAD_IMG_WORDS):
-                    return n
+                if "/" not in rel and not any(b in nl for b in BAD_IMG_WORDS):
+                    if n not in primary and n not in secondary:
+                        secondary.append(n)
+
+    # Combine while preserving preference order
+    return primary, modinfo_imgs, secondary
+
+def pick_best_map_preview(zf: zipfile.ZipFile, names, lvl_dirs, lvl_infos, out_path: Path):
+    primary, modinfo_imgs, secondary = gather_map_preview_candidates(names, lvl_dirs, lvl_infos)
+    ordered = primary + modinfo_imgs + secondary
+
+    # Pass 1: Prefer crisp >= 450px wide passing quality checks
+    for n in ordered:
+        raw = zf.read(n)
+        if is_good_game_preview(raw, min_width=450):
+            dims = save_resized_jpeg(raw, out_path, max_w=640, quality=78)
+            if dims:
+                return dims
+
+    # Pass 2: Allow >= 300px wide passing quality checks
+    for n in ordered:
+        raw = zf.read(n)
+        if is_good_game_preview(raw, min_width=300):
+            dims = save_resized_jpeg(raw, out_path, max_w=640, quality=78)
+            if dims:
+                return dims
+
+    # Pass 2b: Preserve genuine non-blank previews before resorting to heightmap relief
+    for n in ordered:
+        raw = zf.read(n)
+        m = get_image_metrics(raw)
+        if m and m["width"] >= 260 and m["black_ratio"] < 0.85 and m["white_ratio"] < 0.65:
+            dims = save_resized_jpeg(raw, out_path, max_w=640, quality=78)
+            if dims:
+                return dims
+
+    # Pass 3: Terrain heightmap relief fallback (e.g. TwinRingByJosh without real screenshot)
     for n in names:
         nl = n.lower()
-        if nl.startswith("mod_info/") and nl.endswith((".jpg", ".jpeg", ".png", ".webp")):
-            return n
+        if ("height_source" in nl or "heightmap" in nl) and nl.endswith((".png", ".jpg")):
+            dims = render_relief_from_heightmap(zf.read(n), out_path)
+            if dims:
+                return dims
+
+    # Final fallback: any listed entry
+    for n in ordered:
+        dims = save_resized_jpeg(zf.read(n), out_path, max_w=640, quality=78)
+        if dims:
+            return dims
     return None
 
 def pick_car_preview(names, veh_dirs):
@@ -676,6 +846,30 @@ def pick_car_preview(names, veh_dirs):
             return n
     return None
 
+def url_filename_lower(url: str) -> str:
+    return urllib.parse.unquote(url.split("/")[-1].split("?")[0]).lower()
+
+def is_valid_photo_entry(entry: dict, allow_rear_or_detail: bool = False, is_map: bool = False) -> bool:
+    if not entry or not entry.get("url"):
+        return False
+    url = entry["url"]
+    w = int(entry.get("width") or 0)
+    h = int(entry.get("height") or 0)
+    fn = url_filename_lower(url)
+    # Require genuine photographic raster formats (.jpg / .jpeg)
+    if not fn.endswith((".jpg", ".jpeg")):
+        return False
+    if any(tok in fn for tok in NON_PHOTO_URL_TOKENS):
+        return False
+    if w < 300 or h < 180:
+        return False
+    ratio = w / float(h)
+    if ratio < 0.72 or ratio > 2.4:
+        return False
+    if not is_map and not allow_rear_or_detail and CAR_DETAIL_RE.search(fn):
+        return False
+    return True
+
 def http_get_json(url: str):
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=20) as resp:
@@ -685,7 +879,6 @@ def fetch_wiki_pageimages_batch(titles: list[str], cache: dict):
     missing = [t for t in titles if t and t not in cache]
     if not missing:
         return
-    # Batch 40 titles per request
     for i in range(0, len(missing), 40):
         chunk = missing[i:i + 40]
         joined = "|".join(chunk)
@@ -700,64 +893,134 @@ def fetch_wiki_pageimages_batch(titles: list[str], cache: dict):
             norm_map = {n["from"]: n["to"] for n in q.get("normalized", [])}
             redir_map = {r["from"]: r["to"] for r in q.get("redirects", [])}
             pages = q.get("pages", {})
-            title_to_img = {}
+            title_to_info = {}
             for p in pages.values():
                 t = p.get("title")
-                thumb = (p.get("thumbnail") or {}).get("source")
-                if t and thumb:
-                    title_to_img[t] = thumb
+                thumb = p.get("thumbnail") or {}
+                src = thumb.get("source")
+                if t and src:
+                    title_to_info[t] = {
+                        "url": src,
+                        "width": int(thumb.get("width") or 800),
+                        "height": int(thumb.get("height") or 533),
+                    }
             for orig in chunk:
                 cur = norm_map.get(orig, orig)
                 cur = redir_map.get(cur, cur)
-                if cur in title_to_img:
-                    cache[orig] = title_to_img[cur]
+                if cur in title_to_info:
+                    cache[orig] = title_to_info[cur]
         except Exception as e:
             print("Wiki batch error:", e)
         time.sleep(0.15)
 
-def search_wiki_fallback(query: str, cache: dict):
-    if query in cache and cache[query]:
-        return cache[query]
+def fetch_commons_candidates(query: str, commons_cache: dict, limit: int = 15) -> list[dict]:
+    if query in commons_cache:
+        return commons_cache[query]
     url = (
-        "https://en.wikipedia.org/w/api.php?action=query&format=json"
-        "&generator=search&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=800&gsrsearch="
+        f"https://commons.wikimedia.org/w/api.php?action=query&format=json"
+        f"&generator=search&gsrnamespace=6&gsrlimit={limit}&prop=imageinfo&iiprop=url|size&iiurlwidth=800&gsrsearch="
         + urllib.parse.quote(query)
     )
+    results = []
     try:
         data = http_get_json(url)
         pages = list((data.get("query", {}).get("pages", {})).values())
         pages.sort(key=lambda x: x.get("index", 99))
         for p in pages:
-            thumb = (p.get("thumbnail") or {}).get("source")
-            if thumb and not thumb.lower().endswith(".svg.png"):
-                cache[query] = thumb
-                return thumb
-    except Exception:
-        pass
-    # Wikimedia Commons fallback
-    url2 = (
-        "https://commons.wikimedia.org/w/api.php?action=query&format=json"
-        "&generator=search&gsrnamespace=6&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=800&gsrsearch="
+            ii = (p.get("imageinfo") or [{}])[0]
+            u = ii.get("thumburl") or ii.get("url")
+            w = ii.get("thumbwidth") or ii.get("width") or 800
+            h = ii.get("thumbheight") or ii.get("height") or 533
+            if u:
+                results.append({"url": u, "width": int(w), "height": int(h)})
+    except Exception as e:
+        print(f"Commons search error [{query}]:", e)
+    commons_cache[query] = results
+    time.sleep(0.12)
+    return results
+
+def search_best_photo(query: str, wiki_cache: dict, commons_cache: dict, is_map: bool = False):
+    cands = fetch_commons_candidates(query, commons_cache, limit=15)
+    for prefer_landscape in (True, False):
+        for entry in cands:
+            if not is_valid_photo_entry(entry, allow_rear_or_detail=False, is_map=is_map):
+                continue
+            if prefer_landscape and entry["width"] <= entry["height"]:
+                continue
+            wiki_cache[query] = entry
+            return entry
+
+    # Fallback: Wikipedia search pageimages validated as JPG photo
+    wp_url = (
+        "https://en.wikipedia.org/w/api.php?action=query&format=json"
+        "&generator=search&gsrlimit=5&prop=pageimages&piprop=thumbnail&pithumbsize=800&gsrsearch="
         + urllib.parse.quote(query)
     )
     try:
-        data2 = http_get_json(url2)
-        pages2 = list((data2.get("query", {}).get("pages", {})).values())
-        pages2.sort(key=lambda x: x.get("index", 99))
-        for p in pages2:
-            ii = (p.get("imageinfo") or [{}])[0]
-            u = ii.get("thumburl") or ii.get("url")
-            if u and not u.lower().endswith((".svg", ".svg.png", ".tif", ".tiff")):
-                cache[query] = u
-                return u
+        data = http_get_json(wp_url)
+        pages = list((data.get("query", {}).get("pages", {})).values())
+        pages.sort(key=lambda x: x.get("index", 99))
+        for p in pages:
+            thumb = p.get("thumbnail") or {}
+            entry = {
+                "url": thumb.get("source") or "",
+                "width": int(thumb.get("width") or 800),
+                "height": int(thumb.get("height") or 533),
+            }
+            if is_valid_photo_entry(entry, allow_rear_or_detail=True, is_map=is_map):
+                wiki_cache[query] = entry
+                return entry
     except Exception:
         pass
-    return ""
+
+    for entry in cands:
+        if is_valid_photo_entry(entry, allow_rear_or_detail=True, is_map=is_map):
+            wiki_cache[query] = entry
+            return entry
+    return None
+
+def pick_unique_car_photo(car: dict, wiki_cache: dict, commons_cache: dict, used_urls: set[str]):
+    query = car["realCarQuery"]
+    primary = wiki_cache.get(query)
+    if is_valid_photo_entry(primary, allow_rear_or_detail=False, is_map=False) and primary["url"] not in used_urls:
+        used_urls.add(primary["url"])
+        return primary
+
+    # Try unused exterior landscape JPGs from Wikimedia Commons for query variations
+    search_variants = [query]
+    if car["displayName"] and car["displayName"].lower() != query.lower():
+        search_variants.append(car["displayName"])
+    search_variants.append(f"{query} front")
+
+    fallback_valid = primary if is_valid_photo_entry(primary, allow_rear_or_detail=True, is_map=False) else None
+
+    for sv in search_variants:
+        cands = fetch_commons_candidates(sv, commons_cache, limit=18)
+        for allow_detail in (False, True):
+            for entry in cands:
+                if not is_valid_photo_entry(entry, allow_rear_or_detail=allow_detail, is_map=False):
+                    continue
+                if fallback_valid is None:
+                    fallback_valid = entry
+                if entry["width"] >= entry["height"] and entry["url"] not in used_urls:
+                    used_urls.add(entry["url"])
+                    return entry
+
+    # Any orientation unused JPG
+    for sv in search_variants:
+        for entry in fetch_commons_candidates(sv, commons_cache, limit=18):
+            if is_valid_photo_entry(entry, allow_rear_or_detail=True, is_map=False) and entry["url"] not in used_urls:
+                used_urls.add(entry["url"])
+                return entry
+
+    if fallback_valid:
+        return fallback_valid
+    return None
 
 def aspect_from_slug(s: str, is_map: bool = False) -> str:
     h = int(hashlib.md5(s.encode("utf-8")).hexdigest()[:4], 16) % 10
     if is_map:
-        return ["medium", "wide", "tall", "square", "medium"][h % 5]
+        return "wide" if h % 2 == 0 else "medium"
     if h in (0, 5):
         return "tall"
     if h in (1, 6, 8):
@@ -770,10 +1033,10 @@ def main():
     MAPS_THUMB_DIR.mkdir(parents=True, exist_ok=True)
     CARS_THUMB_DIR.mkdir(parents=True, exist_ok=True)
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    cache = {}
-    if CACHE_FILE.exists():
-        cache = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+    cache = json.loads(CACHE_FILE.read_text(encoding="utf-8")) if CACHE_FILE.exists() else {}
+    commons_cache = json.loads(COMMONS_CACHE_FILE.read_text(encoding="utf-8")) if COMMONS_CACHE_FILE.exists() else {}
 
     zips = [("mods", p) for p in sorted(MODS_ROOT.glob("*.zip"))] + [("repo", p) for p in sorted((MODS_ROOT / "repo").glob("*.zip"))]
 
@@ -815,22 +1078,20 @@ def main():
                     desc = ""
 
                 slug = slugify(p.name)
-                prev_entry = pick_map_preview(names, lvl_dirs, lvl_infos)
-                game_thumb_rel = ""
-                if prev_entry:
-                    out_jpg = MAPS_THUMB_DIR / f"{slug}.jpg"
-                    if not out_jpg.exists():
-                        save_resized_jpeg(zf.read(prev_entry), out_jpg, max_w=640, quality=78)
-                    if out_jpg.exists():
-                        game_thumb_rel = f"/thumbnails/maps/{slug}.jpg"
+                out_jpg = MAPS_THUMB_DIR / f"{slug}.jpg"
+                thumb_dims = pick_best_map_preview(zf, names, lvl_dirs, lvl_infos, out_jpg)
+                game_thumb_rel = f"/thumbnails/maps/{slug}.jpg" if thumb_dims else ""
+                tw, th = thumb_dims if thumb_dims else (640, 360)
 
                 is_real = zl in REAL_MAPS_MAP
                 if is_real:
                     dname, wquery, loc_label = REAL_MAPS_MAP[zl]
+                    commons_override = MAP_COMMONS_PHOTO_QUERIES.get(zl)
                 else:
                     dname = FICTIONAL_DISPLAY_OVERRIDES.get(zl) or li_title or mi_title or p.stem.replace("_", " ")
                     wquery = ""
                     loc_label = None
+                    commons_override = None
 
                 raw_maps.append({
                     "id": slug,
@@ -842,7 +1103,10 @@ def main():
                     "isRealWorld": is_real,
                     "realLocationName": loc_label,
                     "wikiQuery": wquery,
+                    "commonsQuery": commons_override,
                     "gameImageUrl": game_thumb_rel,
+                    "gameThumbWidth": tw,
+                    "gameThumbHeight": th,
                     "aspectRatio": aspect_from_slug(slug, is_map=True),
                 })
                 continue
@@ -876,12 +1140,18 @@ def main():
             slug = slugify(p.name)
             prev_entry = pick_car_preview(names, custom_vehs)
             car_thumb_rel = ""
+            cw, ch = (460, 259)
             if prev_entry:
                 out_jpg = CARS_THUMB_DIR / f"{slug}.jpg"
-                if not out_jpg.exists():
-                    save_resized_jpeg(zf.read(prev_entry), out_jpg, max_w=460, quality=72)
                 if out_jpg.exists():
+                    with Image.open(out_jpg) as existing_im:
+                        cw, ch = existing_im.size
                     car_thumb_rel = f"/thumbnails/cars/{slug}.jpg"
+                else:
+                    dims = save_resized_jpeg(zf.read(prev_entry), out_jpg, max_w=460, quality=72)
+                    if dims:
+                        cw, ch = dims
+                        car_thumb_rel = f"/thumbnails/cars/{slug}.jpg"
 
             first_v = custom_vehs[0]
             vinfo = veh_infos.get(first_v) or {}
@@ -904,29 +1174,89 @@ def main():
                 "brand": brand or dname.split(" ")[0],
                 "realCarQuery": wquery,
                 "gamePreviewUrl": car_thumb_rel or None,
+                "gameThumbWidth": cw,
+                "gameThumbHeight": ch,
                 "category": "camion" if zl in TRUCK_ZIPS else "auto",
                 "aspectRatio": aspect_from_slug(slug, is_map=False),
             })
 
-    # Batch fetch Wikipedia lead images
-    all_queries = sorted({c["realCarQuery"] for c in raw_cars if c["realCarQuery"]} | {m["wikiQuery"] for m in raw_maps if m["wikiQuery"]})
-    print(f"Fetching Wikipedia pageimages for {len(all_queries)} unique queries...")
-    fetch_wiki_pageimages_batch(all_queries, cache)
+    # Batch fetch Wikipedia lead images for standard article queries
+    wp_titles = sorted(
+        {c["realCarQuery"] for c in raw_cars if c["realCarQuery"]}
+        | {m["wikiQuery"] for m in raw_maps if m["isRealWorld"] and not m["commonsQuery"] and m["wikiQuery"]}
+    )
+    print(f"Fetching Wikipedia pageimages for {len(wp_titles)} unique titles...")
+    fetch_wiki_pageimages_batch(wp_titles, cache)
 
-    # Fallback search for any missing
-    missing = [q for q in all_queries if not cache.get(q)]
-    print(f"Missing after exact batch: {len(missing)}")
-    for q in missing:
-        img = search_wiki_fallback(q, cache)
-        print(f"  Fallback [{q}] -> {'OK' if img else 'MISS'}")
-        time.sleep(0.1)
+    # Curate scenic Commons JPGs for explicit map overrides or invalid Wikipedia map leads
+    used_map_urls: set[str] = set()
+    final_maps = []
+    for m in raw_maps:
+        real_entry = None
+        if m["isRealWorld"]:
+            if m["commonsQuery"]:
+                cands = fetch_commons_candidates(m["commonsQuery"], commons_cache, limit=15)
+                for prefer_land in (True, False):
+                    for cand in cands:
+                        if not is_valid_photo_entry(cand, allow_rear_or_detail=True, is_map=True):
+                            continue
+                        if prefer_land and cand["width"] <= cand["height"]:
+                            continue
+                        if cand["url"] not in used_map_urls:
+                            real_entry = cand
+                            break
+                    if real_entry:
+                        break
+                if not real_entry:
+                    for cand in cands:
+                        if is_valid_photo_entry(cand, allow_rear_or_detail=True, is_map=True):
+                            real_entry = cand
+                            break
+            else:
+                cand_wp = cache.get(m["wikiQuery"])
+                if is_valid_photo_entry(cand_wp, allow_rear_or_detail=True, is_map=True):
+                    real_entry = cand_wp
+                else:
+                    # Fallback to Commons search for this location
+                    real_entry = search_best_photo(m["wikiQuery"], cache, commons_cache, is_map=True)
 
-    CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CACHE_FILE.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8")
+        real_url = real_entry["url"] if real_entry else None
+        if real_url:
+            used_map_urls.add(real_url)
 
+        is_real_ok = bool(m["isRealWorld"] and real_url)
+        # Split real-world cards use wide 16:9 so both halves stay balanced;
+        # Fictional cards use the exact natural pixel ratio of the game preview.
+        aw, ah = (16, 9) if is_real_ok else (m["gameThumbWidth"], m["gameThumbHeight"])
+
+        final_maps.append({
+            "id": m["id"],
+            "zipName": m["zipName"],
+            "source": m["source"],
+            "internalId": m["internalId"],
+            "displayName": m["displayName"],
+            "description": m["description"],
+            "isRealWorld": is_real_ok,
+            "realLocationName": m["realLocationName"],
+            "realImageUrl": real_url,
+            "gameImageUrl": m["gameImageUrl"],
+            "aspectRatio": "wide" if is_real_ok else m["aspectRatio"],
+            "aspectWidth": aw,
+            "aspectHeight": ah,
+        })
+
+    # De-duplicate & validate car photos with exact dimensions
+    used_car_urls: set[str] = set()
     final_cars = []
     for c in raw_cars:
-        img_url = cache.get(c["realCarQuery"], "") or (c["gamePreviewUrl"] or "")
+        photo = pick_unique_car_photo(c, cache, commons_cache, used_car_urls)
+        if photo:
+            img_url = photo["url"]
+            aw, ah = photo["width"], photo["height"]
+        else:
+            img_url = c["gamePreviewUrl"] or ""
+            aw, ah = c["gameThumbWidth"], c["gameThumbHeight"]
+
         final_cars.append({
             "id": c["id"],
             "zipName": c["zipName"],
@@ -938,27 +1268,12 @@ def main():
             "gamePreviewUrl": c["gamePreviewUrl"],
             "category": c["category"],
             "aspectRatio": c["aspectRatio"],
+            "aspectWidth": aw,
+            "aspectHeight": ah,
         })
 
-    final_maps = []
-    for m in raw_maps:
-        real_url = cache.get(m["wikiQuery"], "") if m["isRealWorld"] else None
-        if m["isRealWorld"] and not real_url:
-            # If real-world query failed completely, fall back safely
-            real_url = None
-        final_maps.append({
-            "id": m["id"],
-            "zipName": m["zipName"],
-            "source": m["source"],
-            "internalId": m["internalId"],
-            "displayName": m["displayName"],
-            "description": m["description"],
-            "isRealWorld": bool(m["isRealWorld"] and real_url),
-            "realLocationName": m["realLocationName"],
-            "realImageUrl": real_url,
-            "gameImageUrl": m["gameImageUrl"],
-            "aspectRatio": m["aspectRatio"],
-        })
+    CACHE_FILE.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8")
+    COMMONS_CACHE_FILE.write_text(json.dumps(commons_cache, indent=2, ensure_ascii=False), encoding="utf-8")
 
     catalog = {
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

@@ -13,6 +13,8 @@ export interface CarModItem {
   gamePreviewUrl?: string;
   category: 'auto' | 'camion';
   aspectRatio: PinAspectRatio;
+  aspectWidth: number;
+  aspectHeight: number;
 }
 
 export interface MapModItem {
@@ -27,6 +29,8 @@ export interface MapModItem {
   realImageUrl?: string;
   gameImageUrl: string;
   aspectRatio: PinAspectRatio;
+  aspectWidth: number;
+  aspectHeight: number;
 }
 
 export interface ModsCatalog {
