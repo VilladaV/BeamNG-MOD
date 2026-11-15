@@ -27,3 +27,6 @@ dist-ssr
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Firebase deploy cache
+.firebase/
