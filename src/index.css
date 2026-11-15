@@ -9,6 +9,100 @@
 }
 
 @layer utilities {
+  .font-cartoon {
+    font-family: "Rubik Bubbles", "Fredoka", system-ui, sans-serif;
+  }
+
+  .font-comic-display {
+    font-family: "Fredoka", system-ui, sans-serif;
+  }
+
+  .cartoon-letter {
+    display: inline-block;
+    position: relative;
+    -webkit-text-stroke: 0.048em #18181b;
+    paint-order: stroke fill;
+    text-shadow:
+      0 2px 0 #18181b,
+      0 4px 0 #18181b,
+      0 6px 0 #18181b,
+      2px 7px 0 #18181b,
+      4px 12px 18px rgba(24, 24, 27, 0.2);
+    transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: cartoonFloat 3.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    animation-delay: var(--letter-delay, 0ms);
+    will-change: transform;
+  }
+
+  .cartoon-letter:hover {
+    animation-play-state: paused;
+    transform: translateY(-10px) scale(1.16) rotate(var(--hover-tilt, -5deg));
+  }
+
+  .cartoon-pill {
+    border: 2.5px solid #18181b;
+    box-shadow: 0 4px 0 #18181b;
+    transition:
+      transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 180ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      background-color 180ms ease;
+  }
+
+  .cartoon-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #18181b;
+  }
+
+  .cartoon-pill:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #18181b;
+  }
+
+  .cartoon-sparkle {
+    animation: sparkleDrift 4.2s ease-in-out infinite;
+    animation-delay: var(--sparkle-delay, 0ms);
+  }
+
+  @keyframes cartoonFloat {
+    0%,
+    100% {
+      transform: translateY(0) rotate(var(--base-tilt, 0deg)) scale(1);
+    }
+    25% {
+      transform: translateY(-7px) rotate(calc(var(--base-tilt, 0deg) + 2.5deg)) scale(1.03, 0.98);
+    }
+    50% {
+      transform: translateY(1px) rotate(calc(var(--base-tilt, 0deg) - 1.5deg)) scale(0.98, 1.03);
+    }
+    75% {
+      transform: translateY(-4px) rotate(calc(var(--base-tilt, 0deg) + 1deg)) scale(1.01, 0.99);
+    }
+  }
+
+  @keyframes sparkleDrift {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg) scale(1);
+      opacity: 0.9;
+    }
+    50% {
+      transform: translateY(-8px) rotate(14deg) scale(1.15);
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cartoon-letter,
+    .cartoon-sparkle {
+      animation: none;
+    }
+
+    .cartoon-letter:hover,
+    .cartoon-pill:hover {
+      transform: none;
+    }
+  }
+
   .card-deferred {
     content-visibility: auto;
     contain-intrinsic-size: auto none auto 280px;
