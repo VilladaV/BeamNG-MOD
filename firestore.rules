@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: worldMap
+    // Document ID: sharedPins
+    // Fields:
+    //   - pins: map (required, max 200 map entries of { x: number, y: number })
+    //   - updatedAt: string (required, ISO-8601 UTC timestamp, 10..40 chars)
+    //
+    // ===============================================================
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function isValidIsoTimestamp(value) {
+      return value is string &&
+        value.size() >= 10 &&
+        value.size() <= 40 &&
+        value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T.+Z$');
+    }
+
+    function isValidSharedPinsDoc(data) {
+      return hasRequiredFields(data, ['pins', 'updatedAt']) &&
+        hasOnlyAllowedFields(data, ['pins', 'updatedAt']) &&
+        data.pins is map &&
+        data.pins.size() <= 200 &&
+        isValidIsoTimestamp(data.updatedAt);
+    }
+
+    // Explicitly requested unauthenticated cross-device shared board for the
+    // Cartoon World Map pin coordinates. Writes are strictly schema-validated.
+    match /worldMap/sharedPins {
+      allow get, list: if true;
+      allow create, update: if isValidSharedPinsDoc(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Default deny for every other collection or document path
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -10,6 +10,8 @@ import {
 import {
   ChevronDown,
   ChevronUp,
+  Cloud,
+  CloudOff,
   Compass,
   Crosshair,
   Dice5,
@@ -31,6 +33,10 @@ import {
   WORLD_GREAT_LAKES_PATH,
   WORLD_MAP_VIEWBOX,
 } from '@/data/cartoonWorldMapData';
+import {
+  saveSharedWorldPins,
+  subscribeToSharedWorldPins,
+} from '@/lib/firebase';
 import type { MapModItem } from '@/types/mods';
 
 interface PinCoord {
@@ -457,6 +463,9 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
   const [placedPins, setPlacedPins] = useState<PinMap>(() =>
     loadInitialPins(new Set(allMaps.map((m) => m.id)))
   );
+  const [cloudStatus, setCloudStatus] = useState<'connecting' | 'synced' | 'saving' | 'offline'>(
+    'connecting'
+  );
   const [placingMapId, setPlacingMapId] = useState<string | null>(null);
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [lastDroppedId, setLastDroppedId] = useState<string | null>(null);
@@ -470,12 +479,14 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldLayerRef = useRef<HTMLDivElement>(null);
+  const placedPinsRef = useRef<PinMap>(placedPins);
 
   const dragPinRef = useRef<{
     mapId: string;
     startX: number;
     startY: number;
     moved: boolean;
+    latestCoord: PinCoord | null;
   } | null>(null);
 
   const panGestureRef = useRef<{
@@ -486,14 +497,54 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
     moved: boolean;
   } | null>(null);
 
-  // Persist user's custom pin layout in localStorage
+  // Mirror placed pins to localStorage as instant offline cache
   useEffect(() => {
+    placedPinsRef.current = placedPins;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(placedPins));
     } catch {
       // Ignore storage quota errors gracefully
     }
   }, [placedPins]);
+
+  // Real-time Cloud Firestore subscription so pins stay synced across PC & mobile
+  useEffect(() => {
+    const unsubscribe = subscribeToSharedWorldPins(validMapIds, {
+      onRemotePins: (remotePins) => {
+        // Avoid overwriting an active pointer drag mid-gesture
+        if (!dragPinRef.current) {
+          placedPinsRef.current = remotePins;
+          setPlacedPins(remotePins);
+        }
+        setCloudStatus('synced');
+      },
+      onMissingRemote: () => placedPinsRef.current,
+      onError: () => {
+        setCloudStatus('offline');
+      },
+    });
+    return () => unsubscribe();
+  }, [validMapIds]);
+
+  const persistPinsToCloud = useCallback((nextPins: PinMap) => {
+    setCloudStatus('saving');
+    void saveSharedWorldPins(nextPins)
+      .then(() => {
+        setCloudStatus('synced');
+      })
+      .catch(() => {
+        setCloudStatus('offline');
+      });
+  }, []);
+
+  const commitPins = useCallback(
+    (nextPins: PinMap) => {
+      placedPinsRef.current = nextPins;
+      setPlacedPins(nextPins);
+      persistPinsToCloud(nextPins);
+    },
+    [persistPinsToCloud]
+  );
 
   const placedCount = useMemo(
     () => Object.keys(placedPins).filter((id) => validMapIds.has(id)).length,
@@ -518,12 +569,16 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
     []
   );
 
-  const placePinAt = useCallback((mapId: string, coord: PinCoord) => {
-    setPlacedPins((prev) => ({ ...prev, [mapId]: coord }));
-    setLastDroppedId(mapId);
-    setSelectedPinId(mapId);
-    setPlacingMapId(null);
-  }, []);
+  const placePinAt = useCallback(
+    (mapId: string, coord: PinCoord) => {
+      const next = { ...placedPinsRef.current, [mapId]: coord };
+      commitPins(next);
+      setLastDroppedId(mapId);
+      setSelectedPinId(mapId);
+      setPlacingMapId(null);
+    },
+    [commitPins]
+  );
 
   const applyZoom = useCallback(
     (nextZoom: number, focusX?: number, focusY?: number) => {
@@ -554,58 +609,54 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
   );
 
   const handleAutoPlaceRealMaps = useCallback(() => {
-    setPlacedPins((prev) => {
-      const next = { ...prev };
-      for (const [id, pin] of Object.entries(DEFAULT_REAL_MAP_PINS)) {
-        if (validMapIds.has(id)) {
-          next[id] = { x: pin.x, y: pin.y };
-        }
+    const next = { ...placedPinsRef.current };
+    for (const [id, pin] of Object.entries(DEFAULT_REAL_MAP_PINS)) {
+      if (validMapIds.has(id)) {
+        next[id] = { x: pin.x, y: pin.y };
       }
-      return next;
-    });
+    }
+    commitPins(next);
     setPlacingMapId(null);
-  }, [validMapIds]);
+  }, [commitPins, validMapIds]);
 
   const handleScatterUnplacedOriginals = useCallback(() => {
-    setPlacedPins((prev) => {
-      const next = { ...prev };
-      // Distribute unplaced original/fictional maps cleanly across landmasses & islands
-      const creativeZones: Array<[number, number, number, number]> = [
-        [10, 26, 26, 40],  // North America
-        [24, 34, 54, 76],  // South America
-        [45, 56, 20, 31],  // Europe
-        [47, 59, 44, 66],  // Africa
-        [63, 83, 24, 42],  // Asia
-        [82, 92, 68, 79],  // Oceania
-      ];
-      let slotIdx = 0;
-      for (const map of allMaps) {
-        if (next[map.id] || map.isRealWorld) continue;
-        const [xMin, xMax, yMin, yMax] = creativeZones[slotIdx % creativeZones.length];
-        // Deterministic pseudo-random spread from map id hash so positions look playful & organic
-        let hash = 2166136261;
-        for (let i = 0; i < map.id.length; i++) {
-          hash ^= map.id.charCodeAt(i);
-          hash = Math.imul(hash, 16777619);
-        }
-        const rx = ((hash >>> 0) % 1000) / 1000;
-        const ry = (((hash >>> 10) ^ slotIdx * 97) % 1000) / 1000;
-        next[map.id] = {
-          x: Number((xMin + rx * (xMax - xMin)).toFixed(2)),
-          y: Number((yMin + ry * (yMax - yMin)).toFixed(2)),
-        };
-        slotIdx++;
+    const next = { ...placedPinsRef.current };
+    // Distribute unplaced original/fictional maps cleanly across landmasses & islands
+    const creativeZones: Array<[number, number, number, number]> = [
+      [10, 26, 26, 40],  // North America
+      [24, 34, 54, 76],  // South America
+      [45, 56, 20, 31],  // Europe
+      [47, 59, 44, 66],  // Africa
+      [63, 83, 24, 42],  // Asia
+      [82, 92, 68, 79],  // Oceania
+    ];
+    let slotIdx = 0;
+    for (const map of allMaps) {
+      if (next[map.id] || map.isRealWorld) continue;
+      const [xMin, xMax, yMin, yMax] = creativeZones[slotIdx % creativeZones.length];
+      // Deterministic pseudo-random spread from map id hash so positions look playful & organic
+      let hash = 2166136261;
+      for (let i = 0; i < map.id.length; i++) {
+        hash ^= map.id.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
       }
-      return next;
-    });
+      const rx = ((hash >>> 0) % 1000) / 1000;
+      const ry = (((hash >>> 10) ^ slotIdx * 97) % 1000) / 1000;
+      next[map.id] = {
+        x: Number((xMin + rx * (xMax - xMin)).toFixed(2)),
+        y: Number((yMin + ry * (yMax - yMin)).toFixed(2)),
+      };
+      slotIdx++;
+    }
+    commitPins(next);
     setPlacingMapId(null);
-  }, [allMaps]);
+  }, [allMaps, commitPins]);
 
   const handleClearAllPins = useCallback(() => {
-    setPlacedPins({});
+    commitPins({});
     setSelectedPinId(null);
     setPlacingMapId(null);
-  }, []);
+  }, [commitPins]);
 
   // Viewport pointer handlers: pan map or click-to-place active map
   const handleViewportPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -629,6 +680,7 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
       }
       const nextCoord = clientPointToWorldPercent(e.clientX, e.clientY);
       if (nextCoord && activeDrag.moved) {
+        activeDrag.latestCoord = nextCoord;
         setPlacedPins((prev) => ({
           ...prev,
           [activeDrag.mapId]: nextCoord,
@@ -666,9 +718,11 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
 
   const handleViewportPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (dragPinRef.current) {
-      const { mapId, moved } = dragPinRef.current;
+      const { mapId, moved, latestCoord } = dragPinRef.current;
       dragPinRef.current = null;
-      if (!moved) {
+      if (moved && latestCoord) {
+        commitPins({ ...placedPinsRef.current, [mapId]: latestCoord });
+      } else if (!moved) {
         setSelectedPinId((prev) => (prev === mapId ? null : mapId));
       }
       return;
@@ -702,6 +756,7 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
       startX: e.clientX,
       startY: e.clientY,
       moved: false,
+      latestCoord: null,
     };
   };
 
@@ -778,6 +833,29 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
                 </h2>
                 <span className="inline-flex items-center gap-1 rounded-full border-2 border-zinc-900 bg-[#2EC4B6] px-2.5 py-0.5 text-xs font-black text-zinc-950 shadow-[0_2px_0_#18181b]">
                   {placedCount} / {allMaps.length} ubicados
+                </span>
+                <span
+                  title="Los pines se guardan y sincronizan en tiempo real con Firebase Cloud Firestore"
+                  className={`inline-flex items-center gap-1 rounded-full border-2 border-zinc-900 px-2.5 py-0.5 text-[11px] font-black shadow-[0_2px_0_#18181b] ${
+                    cloudStatus === 'synced'
+                      ? 'bg-emerald-200 text-zinc-950'
+                      : cloudStatus === 'saving' || cloudStatus === 'connecting'
+                        ? 'bg-amber-200 text-zinc-950'
+                        : 'bg-zinc-200 text-zinc-700'
+                  }`}
+                >
+                  {cloudStatus === 'offline' ? (
+                    <CloudOff className="h-3 w-3" />
+                  ) : (
+                    <Cloud className="h-3 w-3" />
+                  )}
+                  {cloudStatus === 'synced'
+                    ? 'Nube sincronizada'
+                    : cloudStatus === 'saving'
+                      ? 'Guardando...'
+                      : cloudStatus === 'connecting'
+                        ? 'Conectando...'
+                        : 'Solo local'}
                 </span>
               </div>
               <p className="text-xs font-medium text-zinc-600 sm:text-sm">
@@ -1141,11 +1219,9 @@ export function CartoonWorldMapSection({ allMaps }: CartoonWorldMapSectionProps)
                     setSelectedPinId(null);
                   }}
                   onRemove={() => {
-                    setPlacedPins((prev) => {
-                      const next = { ...prev };
-                      delete next[selectedMap.id];
-                      return next;
-                    });
+                    const next = { ...placedPinsRef.current };
+                    delete next[selectedMap.id];
+                    commitPins(next);
                     setSelectedPinId(null);
                   }}
                   onClose={() => setSelectedPinId(null)}
