@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    background-color: #fbfaf8;
+    color: #18181b;
+  }
+}
+
+@layer utilities {
+  .card-deferred {
+    content-visibility: auto;
+    contain-intrinsic-size: auto none auto 280px;
+  }
+
+  .cached-view {
+    display: none;
+  }
+
+  .cached-view.is-active {
+    display: block;
+  }
+
+  @supports (content-visibility: hidden) {
+    .cached-view {
+      display: block;
+      content-visibility: hidden;
+      height: 0;
+      overflow: hidden;
+    }
+
+    .cached-view.is-active {
+      content-visibility: visible;
+      height: auto;
+      overflow: visible;
+    }
+  }
+}
