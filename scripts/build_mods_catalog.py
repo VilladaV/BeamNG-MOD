@@ -801,6 +801,15 @@ def pick_best_map_preview(zf: zipfile.ZipFile, names, lvl_dirs, lvl_infos, out_p
             if dims:
                 return dims
 
+    # Pass 2b: Preserve genuine non-blank previews before resorting to heightmap relief
+    for n in ordered:
+        raw = zf.read(n)
+        m = get_image_metrics(raw)
+        if m and m["width"] >= 260 and m["black_ratio"] < 0.85 and m["white_ratio"] < 0.65:
+            dims = save_resized_jpeg(raw, out_path, max_w=640, quality=78)
+            if dims:
+                return dims
+
     # Pass 3: Terrain heightmap relief fallback (e.g. TwinRingByJosh without real screenshot)
     for n in names:
         nl = n.lower()
